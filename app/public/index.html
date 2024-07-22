@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Перекресток</title>
+        <style>
+            .container {
+                width: 100%;
+            }
+            .md-6 {
+                width: 60%;
+            }
+            .md-4 {
+                width: 40%;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+<!--            <div class="md-4">-->
+<!--                <h1>-->
+<!--                    Настройки-->
+<!--                </h1>-->
+<!--            </div>-->
+            <div class="md-6">
+                <canvas height="1036" width="1036" id="canvas"></canvas>
+            </div>
+        </div>
+        <script>
+            let canvas = document.getElementById('canvas'),
+                ctx = canvas.getContext('2d');
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            // let timer = setInterval(getData, 10000000000);
+            getData();
+
+
+            function getData() {
+                let xhr = new XMLHttpRequest();
+                xhr.open('GET', 'getCrossRoad.php');
+                xhr.send();
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        render(JSON.parse(xhr.responseText));
+                    }
+                }
+            }
+
+            function render(data) {
+                renderFigure(data.cross_road.figure, '#778899')
+                for (let [key, road] of Object.entries(data.cross_road.roads)) {
+                    renderRoad(key, road)
+                }
+
+                for (let [key, road] of Object.entries(data.cross_road.roads)) {
+                    for (let [key, car] of Object.entries(road.reverse_lane.cars)) {
+                        console.log(car, 'reverse')
+                        renderFigure(car.figure, car.figure.color);
+                    }
+                    for (let [key, car] of Object.entries(road.straight_lane.cars)) {
+                        console.log(car, 'straight')
+                        renderFigure(car.figure, car.figure.color);
+                    }
+                }
+            }
+
+            function renderRoad(key, road) {
+                renderFigure(road.figure)
+                renderFigure(road.reverse_lane.figure, 'grey')
+                renderFigure(road.straight_lane.figure, '#A9A9A9')
+            }
+
+            function renderFigure(figure, color = 'black') {
+                ctx.fillStyle = color;
+                if (figure.hasOwnProperty('orientation') && figure.orientation === 'horizontal') {
+                    ctx.fillRect(figure.coordinate.x, figure.coordinate.y, figure.length, figure.width)
+                } else {
+                    ctx.fillRect(figure.coordinate.x, figure.coordinate.y, figure.width, figure.length)
+                }
+            }
+        </script>
+    </body>
+</html>
