@@ -63,10 +63,12 @@ class App implements ArrayableInterface
         $this->crossRoad->run();
         foreach ($this->crossRoad->getRoads() as $road) {
             if ($this->step % $road->getTrafficIntensity() === 0) {
+                if ($road->getDirection() === 'left')
                 $this->addCarToLine($road->getStraightLane());
             }
         }
 
+        $this->step = 0;
         $this->saveState();
     }
 

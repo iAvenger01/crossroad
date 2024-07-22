@@ -39,15 +39,15 @@ class Lane implements ArrayableInterface
             $car->setPositionOnLane($position);
             $this->cars[spl_object_hash($car)] = $car;
 
-            usort($this->cars, function (Car $firstCar, Car $secondCar) {
-                return - $firstCar->getPositionOnLane() + $secondCar->getPositionOnLane();
-            });
+//            usort($this->cars, function (Car $firstCar, Car $secondCar) {
+//                return - $firstCar->getPositionOnLane() + $secondCar->getPositionOnLane();
+//            });
         }
     }
 
     private function canAddCar(): bool {
         $lastCar = end($this->cars);
-        return $lastCar === false || $lastCar->getPositionOnLane() > $lastCar->getLength();
+        return $lastCar === false || $lastCar->getPositionOnLane() > $lastCar->getLength() + 3;
     }
 
     public function removeCar(Car $car): void {
@@ -62,11 +62,20 @@ class Lane implements ArrayableInterface
         foreach ($this->cars as $car) {
             $carPosition = $car->getPositionOnLane();
 
-            if (
-                $carPosition > $myCarPosition &&
-                ($carInFront === null || $carPosition < $carInFront->getPositionOnLane())
-            ) {
-                $carInFront = $car;
+            if ($this->reverse === false) {
+                if (
+                    $carPosition > $myCarPosition &&
+                    ($carInFront === null || $carPosition < $carInFront->getPositionOnLane())
+                ) {
+                    $carInFront = $car;
+                }
+            } else {
+                if (
+                    $carPosition < $myCarPosition &&
+                    ($carInFront === null || $carPosition > $carInFront->getPositionOnLane())
+                ) {
+                    $carInFront = $car;
+                }
             }
         }
         return $carInFront;

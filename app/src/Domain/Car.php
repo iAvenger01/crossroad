@@ -33,10 +33,8 @@ class Car
         $this->maneuver();
 
         if ($this->getLane()->getReverse()) {
-            if ($this->getPositionOnLane() < 0) {
-                $this->lane->removeCar($this);
-            } else {
-                $this->setPositionOnLane($this->getPositionOnLane() + $this->speed);
+            if ($this->getPositionOnLane() <= 0) {
+                $this->getLane()->removeCar($this);
             }
         }
     }
@@ -54,36 +52,46 @@ class Car
         }
 
         if (ChangeSpeed::check($this, $this->getLane())) {
+            $laneReverse = $this->getLane()->getReverse();
             $carInFront = $this->getLane()->getCarInFront($this);
             $carPosition = $this->getPositionOnLane();
-            $caInFrontNextPosition = $this->getPositionOnLane() + $carInFront->getSpeed();
-            $this->speed = $caInFrontNextPosition - $carPosition - $this->getLength() - 10 ;
+            $carInFrontSpeed = $laneReverse ? - $carInFront->getSpeed() : $carInFront->getSpeed();
+            $carInFrontNextPosition = $this->getPositionOnLane() + $carInFrontSpeed;
+
+            if ($this->getLane()->getReverse()) {
+                $this->setSpeed($carPosition - $carInFrontNextPosition + $this->getLength());
+            } else {
+                $this->setSpeed($carInFrontNextPosition - $carPosition - $this->getLength());
+            }
+
             $this->setState('brake');
 
             return;
         }
 
         if (MaxSpeed::check($this, $this->getLane())) {
-            $this->speed = min($this->getMaxSpeed(), $this->getLane()->getMaxSpeed());
+            $this->setSpeed(min($this->getMaxSpeed(), $this->getLane()->getMaxSpeed()));
         } else {
             $carInFront = $this->getLane()->getCarInFront($this);
-            $this->speed = $carInFront->getSpeed();
+            $this->setSpeed($carInFront->getSpeed());
         }
     }
 
     private function maneuver(): void {
         if ($this->state === 'driving' || $this->state === 'brake') {
-            if ($this->getPositionOnLane() + $this->speed > $this->getLane()->getLength()) {
-                $availableTurns = $this->getLane()->getRoad()->getCrossRoad()->availableTurns($this->getLane()->getRoad());
-                $nextRoad = $availableTurns[array_rand($availableTurns)];
+            if ($this->getLane()->getReverse()) {
+                $this->setPositionOnLane($this->getPositionOnLane() - $this->speed);
+            } else  {
+                if ($this->getPositionOnLane() + $this->speed > $this->getLane()->getLength() - $this->getLength()) {
 
-                $this->getLane()->removeCar($this);
-                $nextRoad->getReverseLane()->addCar($this, $nextRoad->getReverseLane()->getLength());
+                    $this->setPositionOnLane($this->getLane()->getLength() + 2 - $this->getLength());
+                    $availableTurns = $this->getLane()->getRoad()->getCrossRoad()->availableTurns($this->getLane()->getRoad());
+                    $nextRoad = $availableTurns[array_rand($availableTurns)];
 
-                $this->setPositionOnLane($nextRoad->getLength() - $this->getLength());
-            } else {
-                if ($this->getLane()->getReverse()) {
-                    $this->setPositionOnLane($this->getPositionOnLane() - $this->speed);
+                    $this->getLane()->removeCar($this);
+                    $nextRoad->getReverseLane()->addCar($this, $nextRoad->getReverseLane()->getLength());
+
+                    $this->setPositionOnLane($nextRoad->getLength() - $this->getLength());
                 } else {
                     $this->setPositionOnLane($this->getPositionOnLane() + $this->speed);
                 }
@@ -165,6 +173,9 @@ class Car
 
     public function setSpeed(int $speed): void
     {
+        if ($speed < 0) {
+            throw new \Exception('Speed cannot be negative');
+        }
         $this->speed = $speed;
     }
 

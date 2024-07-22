@@ -11,6 +11,9 @@ class TrafficLight implements CheckInterface
     public static function check(Car $car, Lane $lane): bool
     {
         $trafficLight = $lane->getRoad()->getCrossRoad()->getTrafficLight();
+        if (is_null($trafficLight)) {
+            return false;
+        }
         if ($car->getPositionOnLane() < $car->getLane()->getLength()) {
             return false;
         }
