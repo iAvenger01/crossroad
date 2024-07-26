@@ -2,9 +2,9 @@
 
 namespace App\Domain;
 
+use App\Event\CarAddedOnLaneEvent;
+use App\Event\CarRemovedFromLaneEvent;
 use App\Foundation\ArrayableInterface;
-use App\Graphic\Figure;
-use App\Graphic\Rectangle;
 
 class Lane implements ArrayableInterface
 {
@@ -14,7 +14,6 @@ class Lane implements ArrayableInterface
      * @var Car[]
      */
     private array $cars = [];
-    private Figure $figure;
 
     private string $orientation;
     private string $direction;
@@ -27,31 +26,27 @@ class Lane implements ArrayableInterface
     {
     }
 
-    public function addCar(Car $car, int $position): void
+    public function addCar(Car $car): void
     {
-        /**
-         * @var Car|false $lastCar
-         */
-        if ($this->canAddCar()) {
-            $car->setSpeed(min($car->getMaxSpeed(), $this->getMaxSpeed()));
-            $car->setMaxSpeed(min($car->getMaxSpeed(), $this->getMaxSpeed()));
-            $car->setLane($this);
-            $car->setPositionOnLane($position);
-            $this->cars[spl_object_hash($car)] = $car;
-
-//            usort($this->cars, function (Car $firstCar, Car $secondCar) {
-//                return - $firstCar->getPositionOnLane() + $secondCar->getPositionOnLane();
-//            });
-        }
+        $car->setSpeed(min($car->getMaxSpeed(), $this->getMaxSpeed()));
+        $car->setMaxSpeed(min($car->getMaxSpeed(), $this->getMaxSpeed()));
+        $car->setLane($this);
+        $this->cars[spl_object_hash($car)] = $car;
+        (new CarAddedOnLaneEvent($car, $this))->dispatch();
     }
 
-    private function canAddCar(): bool {
+    public function canAddCar(): bool {
         $lastCar = end($this->cars);
-        return $lastCar === false || $lastCar->getPositionOnLane() > $lastCar->getLength() + 3;
+        return $lastCar === false || $lastCar->getPositionOnLane() > $lastCar->getLength() + 5;
     }
 
-    public function removeCar(Car $car): void {
-        unset($this->cars[spl_object_hash($car)]);
+    public function removeCar(Car $myCar): void {
+        foreach ($this->cars as $key => $car) {
+            if (spl_object_hash($car) === spl_object_hash($myCar)) {
+                unset($this->cars[$key]);
+                (new CarRemovedFromLaneEvent($car, $this))->dispatch();
+            }
+        }
     }
 
     public function getCarInFront(Car $myCar): ?Car
@@ -62,20 +57,11 @@ class Lane implements ArrayableInterface
         foreach ($this->cars as $car) {
             $carPosition = $car->getPositionOnLane();
 
-            if ($this->reverse === false) {
-                if (
-                    $carPosition > $myCarPosition &&
-                    ($carInFront === null || $carPosition < $carInFront->getPositionOnLane())
-                ) {
-                    $carInFront = $car;
-                }
-            } else {
-                if (
-                    $carPosition < $myCarPosition &&
-                    ($carInFront === null || $carPosition > $carInFront->getPositionOnLane())
-                ) {
-                    $carInFront = $car;
-                }
+            if (
+                $carPosition > $myCarPosition &&
+                ($carInFront === null || $carPosition < $carInFront->getPositionOnLane())
+            ) {
+                $carInFront = $car;
             }
         }
         return $carInFront;
@@ -84,6 +70,11 @@ class Lane implements ArrayableInterface
     public function getLength(): int
     {
         return $this->length;
+    }
+
+    public function setLength(int $length): void
+    {
+        $this->length = $length;
     }
 
     /**
@@ -107,16 +98,6 @@ class Lane implements ArrayableInterface
         return $this->road;
     }
 
-    public function setFigure(Figure $figure): void
-    {
-        $this->figure = $figure;
-    }
-
-    public function getFigure(): Figure
-    {
-        return $this->figure;
-    }
-
     public function toArray(): array
     {
         return [
@@ -124,7 +105,6 @@ class Lane implements ArrayableInterface
             'max_speed' => $this->getMaxSpeed(),
             'cars' => array_map(fn (Car $car) => $car->toArray(), $this->cars),
             'reverse' => $this->reverse,
-            'figure' => $this->figure->toArray(),
             'orientation' => $this->orientation,
             'direction' => $this->direction
         ];
@@ -135,11 +115,10 @@ class Lane implements ArrayableInterface
         $lane = new self($data['length'], $data['max_speed'], $data['reverse']);
         $lane->setOrientation($data['orientation']);
         $lane->setDirection($data['direction']);
-        $lane->setFigure(Rectangle::fromArray($data['figure']));
         foreach ($data['cars'] as $carData) {
             $car = Car::fromArray($carData);
             $car->setLane($lane);
-            $lane->addCar($car, $carData['position_on_lane']);
+            $lane->addCar($car);
         }
 
         return $lane;

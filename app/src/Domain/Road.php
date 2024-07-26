@@ -3,8 +3,6 @@
 namespace App\Domain;
 
 use App\Foundation\ArrayableInterface;
-use App\Graphic\Figure;
-use App\Graphic\Rectangle;
 
 class Road implements ArrayableInterface
 {
@@ -12,13 +10,11 @@ class Road implements ArrayableInterface
     private int $trafficIntensity = 100;
     private Lane $straightLane;
     private Lane $reverseLane;
-    private string $orientation;
     private string $direction;
     private CrossRoad $crossRoad;
-    private Figure $figure;
 
     public function __construct(
-        private readonly int $length,
+        private int $length,
     ){
     }
     
@@ -62,11 +58,6 @@ class Road implements ArrayableInterface
         $this->priority = $priority;
     }
 
-    public function setFigure(Figure $figure): void
-    {
-        $this->figure = $figure;
-    }
-
     /**
      * @return Lane[]
      */
@@ -76,6 +67,11 @@ class Road implements ArrayableInterface
             $this->straightLane,
             $this->reverseLane,
         ];
+    }
+
+    public function setLength(int $length): void
+    {
+        $this->length = $length;
     }
 
     public function getLength(): int
@@ -88,21 +84,14 @@ class Road implements ArrayableInterface
         return $this->trafficIntensity;
     }
 
-    public function setTrafficIntensity(int $trafficIntensity): void
-    {
-        $this->trafficIntensity = $trafficIntensity;
-    }
-
     public function toArray(): array
     {
         return [
             'priority' => $this->getPriority(),
             'length' => $this->getLength(),
             'direction' => $this->getDirection(),
-            'traffic_intensity' => $this->getTrafficIntensity(),
             'straight_lane' => $this->straightLane->toArray(),
             'reverse_lane' => $this->reverseLane->toArray(),
-            'figure' => $this->figure->toArray(),
         ];
     }
 
@@ -110,9 +99,7 @@ class Road implements ArrayableInterface
     {
         $road = new self($data['length']);
         $road->setPriority($data['priority']);
-        $road->setTrafficIntensity($data['traffic_intensity']);
         $road->setDirection($data['direction']);
-        $road->setFigure(Rectangle::fromArray($data['figure']));
         $straightLane = Lane::fromArray($data['straight_lane']);
         $straightLane->setRoad($road);
         $reverseLane = Lane::fromArray($data['reverse_lane']);
@@ -121,16 +108,6 @@ class Road implements ArrayableInterface
         $road->setReverseLane($reverseLane);
 
         return $road;
-    }
-
-    public function getOrientation(): string
-    {
-        return $this->orientation;
-    }
-
-    public function setOrientation(string $orientation): void
-    {
-        $this->orientation = $orientation;
     }
 
     public function getDirection(): string

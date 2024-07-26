@@ -8,4 +8,9 @@ class RedLight extends BaseLight
     {
         return new YellowLight($this);
     }
+
+    public function light(): string
+    {
+        return 'red';
+    }
 }

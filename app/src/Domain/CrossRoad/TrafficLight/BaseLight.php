@@ -16,12 +16,20 @@ abstract class BaseLight implements LightInterface, ArrayableInterface
     {
         return [
             'light' => static::class,
+            'color' => static::light(),
             'previous_light' => $this->previousLight?->toArray(),
         ];
     }
 
     public static function fromArray(array $data): BaseLight
     {
-        return new $data['light']($data['previous_light'] ?? null);
+        if (isset($data['previous_light'])) {
+            $previousLight = new $data['previous_light']['light']();
+        } else {
+            $previousLight = null;
+        }
+        return new $data['light']($previousLight);
     }
+
+    abstract public function light(): string;
 }

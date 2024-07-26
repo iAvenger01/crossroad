@@ -14,4 +14,9 @@ class YellowLight extends BaseLight
             return new RedLight($this);
         }
     }
+
+    public function light(): string
+    {
+        return 'yellow';
+    }
 }

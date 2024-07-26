@@ -7,16 +7,14 @@ use App\Domain\Lane;
 
 class TrafficLight implements CheckInterface
 {
-
     public static function check(Car $car, Lane $lane): bool
     {
-        $trafficLight = $lane->getRoad()->getCrossRoad()->getTrafficLight();
-        if (is_null($trafficLight)) {
-            return false;
+        if ($car->getPositionOnLane() === $lane->getLength()) {
+            if (($trafficLight = $lane->getRoad()->getCrossRoad()->getTrafficLight()) !== null) {
+                return !$trafficLight->canDriveRoad($lane->getOrientation());
+            }
         }
-        if ($car->getPositionOnLane() < $car->getLane()->getLength()) {
-            return false;
-        }
-        return $trafficLight !== null ? $trafficLight->canDriveRoad($lane->getOrientation()) : true;
+
+        return false;
     }
 }

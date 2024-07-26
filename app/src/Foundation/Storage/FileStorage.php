@@ -2,7 +2,7 @@
 
 namespace App\Foundation\Storage;
 
-class StorageDisk implements StorageInterface
+class FileStorage implements StorageInterface
 {
     private string $path;
 

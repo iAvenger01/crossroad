@@ -2,14 +2,9 @@
 
 namespace App\Domain;
 
-use App\Graphic\Figure;
-use App\Graphic\Square;
-use App\Service\Check\CarInFrontStopped;
-use App\Service\Check\ChangeSpeed;
-use App\Service\Check\CheckInterface;
-use App\Service\Check\MaxSpeed;
-use App\Service\Check\TrafficLight;
-use App\Service\Orientator;
+use App\Event\CarDriveOnLaneEvent;
+use App\Event\CarStoppedEvent;
+use Exception;
 
 class Car
 {
@@ -25,98 +20,101 @@ class Car
 
     private Lane $lane;
 
-    private Figure $figure;
+    private string $plannedManeuver = 'front';
 
+    private string $color;
+
+    /**
+     * @throws Exception
+     */
     public function drive(): void
     {
         $this->beforeDrive();
         $this->maneuver();
-
-        if ($this->getLane()->getReverse()) {
-            if ($this->getPositionOnLane() <= 0) {
-                $this->getLane()->removeCar($this);
-            }
-        }
+        $this->afterDrive();
     }
 
-    private function beforeDrive(): void {
+    private function beforeDrive(): void
+    {
         $this->setState('driving');
 
-        foreach (self::getStoppingChecks() as $check) {
-            if ($check::check($this, $this->getLane())) {
-                $this->setState('stop');
-                return;
-            } else {
-                $this->setState('driving');
-            }
-        }
+        $lane = $this->lane;
 
-        if (ChangeSpeed::check($this, $this->getLane())) {
-            $laneReverse = $this->getLane()->getReverse();
-            $carInFront = $this->getLane()->getCarInFront($this);
-            $carPosition = $this->getPositionOnLane();
-            $carInFrontSpeed = $laneReverse ? - $carInFront->getSpeed() : $carInFront->getSpeed();
-            $carInFrontNextPosition = $this->getPositionOnLane() + $carInFrontSpeed;
-
-            if ($this->getLane()->getReverse()) {
-                $this->setSpeed($carPosition - $carInFrontNextPosition + $this->getLength());
-            } else {
-                $this->setSpeed($carInFrontNextPosition - $carPosition - $this->getLength());
-            }
-
+        if ($this->getPositionOnLane() + $this->getSpeed() > $lane->getLength()) {
+            $this->setSpeed($lane->getLength() - $this->getPositionOnLane());
             $this->setState('brake');
-
-            return;
         }
-
-        if (MaxSpeed::check($this, $this->getLane())) {
-            $this->setSpeed(min($this->getMaxSpeed(), $this->getLane()->getMaxSpeed()));
-        } else {
-            $carInFront = $this->getLane()->getCarInFront($this);
-            $this->setSpeed($carInFront->getSpeed());
-        }
-    }
-
-    private function maneuver(): void {
-        if ($this->state === 'driving' || $this->state === 'brake') {
-            if ($this->getLane()->getReverse()) {
-                $this->setPositionOnLane($this->getPositionOnLane() - $this->speed);
-            } else  {
-                if ($this->getPositionOnLane() + $this->speed > $this->getLane()->getLength() - $this->getLength()) {
-
-                    $this->setPositionOnLane($this->getLane()->getLength() + 2 - $this->getLength());
-                    $availableTurns = $this->getLane()->getRoad()->getCrossRoad()->availableTurns($this->getLane()->getRoad());
-                    $nextRoad = $availableTurns[array_rand($availableTurns)];
-
-                    $this->getLane()->removeCar($this);
-                    $nextRoad->getReverseLane()->addCar($this, $nextRoad->getReverseLane()->getLength());
-
-                    $this->setPositionOnLane($nextRoad->getLength() - $this->getLength());
+        // Должна ли текущая (если она ближайшая машина к перекрестку) остановиться из-за светофора (TrafficLightCheck)
+        if ($this->getPositionOnLane() === $lane->getLength()) {
+            if (($trafficLight = $lane->getRoad()->getCrossRoad()->getTrafficLight()) !== null) {
+                if (!$trafficLight->canDriveRoad($lane->getOrientation())) {
+                    $this->setState('stop');
                 } else {
-                    $this->setPositionOnLane($this->getPositionOnLane() + $this->speed);
+                    $this->setState('driving');
+                }
+            }
+        }
+        // TODO Должна ли ближайшая машина к перекрестку остановиться из-за приоритета
+
+        // Должна ли текущая машина остановиться или замедлиться из-за автомобиля впереди
+        $carInFront = $lane->getCarInFront($this);
+        if (!is_null($carInFront)) {
+            if ($this->positionOnLane < $lane->getLength()) {
+                if ($carInFront->isStopped() || $carInFront->isDriving()) {
+                    $carInFrontNextPosition = $carInFront->getPositionOnLane() - $carInFront->getLength() / 2;
+                } else if ($carInFront->isBrake()) {
+                    $carInFrontNextPosition = $carInFront->getPositionOnLane() - $carInFront->getLength() / 2;
+                }
+                $thisSpeed = $carInFrontNextPosition - $this->positionOnLane - $this->length;
+
+                if ($thisSpeed < 0) {
+                    $thisSpeed = 0;
+                }
+                if ($this->positionOnLane + $this->speed + $this->length > $carInFrontNextPosition) {
+                    $this->setSpeed($thisSpeed);
+
+                    $this->setState('brake');
+                    if ($thisSpeed === 0) {
+                        $this->setState('stop');
+                    }
                 }
             }
         }
     }
 
-    private function updateCoordinateByPosition(int $positionOnLane): void
+    private function afterDrive(): void
     {
-        $lane = $this->getLane();
-        $coordinate = clone $this->figure->getCoordinate();
-        if ($lane->getOrientation() === Orientator::ORIENTATION_HORIZONTAL) {
-            if ($lane->getDirection() === Orientator::DIRECTION_LEFT) {
-                $coordinate->setX($positionOnLane);
-            } else {
-                $coordinate->setX($lane->getLength() * 2 + (36 - $this->getLength()) - $positionOnLane);
-            }
-        } else {
-            if ($lane->getDirection() === Orientator::DIRECTION_TOP) {
-                $coordinate->setY($positionOnLane);
-            } else {
-                $coordinate->setY($lane->getLength() * 2 + (36 - $this->getLength()) - $positionOnLane);
-            }
+        if ($this->getLane()->getReverse() && $this->getPositionOnLane() >= $this->getLane()->getLength()) {
+            $this->getLane()->removeCar($this);
         }
-        $this->figure->setCoordinate($coordinate);
+    }
+
+    private function maneuver(): void {
+        if ($this->state === 'driving' || $this->state === 'brake') {
+            (new CarDriveOnLaneEvent($this, $this->getLane()))->dispatch();
+            if (
+                !$this->getLane()->getReverse()
+                && $this->getPositionOnLane() === $this->getLane()->getLength()
+            ) {
+                $this->setPositionOnLane($this->getLane()->getLength());
+                $crossRoad = $this->getLane()->getRoad()->getCrossRoad();
+                if ($this->getPlannedManeuver() === 'front') {
+                    $availableTurns = $crossRoad->availableTurns($this->getLane()->getRoad());
+                    $nextRoad = $availableTurns[array_rand($availableTurns)];
+                    $this->setPlannedManeuver($nextRoad->getDirection());
+                }
+
+                if ($crossRoad->canDriveCrossRoad($this)) {
+                    $this->getLane()->removeCar($this);
+                    $this->setPositionOnLane(0);
+                    $crossRoad->addCarInBuffer($this);
+                }
+            } else {
+                $this->setPositionOnLane($this->getPositionOnLane() + $this->getSpeed());
+            }
+        } elseif ($this->state === 'stop') {
+            (new CarStoppedEvent($this, $this->getLane()))->dispatch();
+        }
     }
 
     /**
@@ -130,7 +128,6 @@ class Car
     public function setPositionOnLane(int $positionOnLane): void
     {
         $this->positionOnLane = $positionOnLane;
-        $this->updateCoordinateByPosition($positionOnLane);
     }
 
     /**
@@ -144,6 +141,16 @@ class Car
     public function isStopped(): bool
     {
         return $this->state === 'stop';
+    }
+
+    public function isBrake(): bool
+    {
+        return $this->state === 'brake';
+    }
+
+    public function isDriving(): bool
+    {
+        return $this->state === 'driving';
     }
 
     public function getLane(): Lane
@@ -171,10 +178,13 @@ class Car
         return $this->speed;
     }
 
+    /**
+     * @throws Exception
+     */
     public function setSpeed(int $speed): void
     {
         if ($speed < 0) {
-            throw new \Exception('Speed cannot be negative');
+            throw new Exception('Speed cannot be negative');
         }
         $this->speed = $speed;
     }
@@ -186,16 +196,22 @@ class Car
             'position_on_lane' => $this->getPositionOnLane(),
             'max_speed' => $this->getMaxSpeed(),
             'speed' => $this->getSpeed(),
-            'figure' => $this->figure->toArray(),
+            'color' => $this->getColor(),
+            'planned_maneuver' => $this->getPlannedManeuver(),
         ];
     }
 
+    /**
+     * @throws Exception
+     */
     public static function fromArray($data): Car
     {
         $car = new self();
         $car->setSpeed($data['speed']);
         $car->setMaxSpeed($data['max_speed']);
-        $car->setFigure(Square::fromArray($data['figure']));
+        $car->setColor($data['color']);
+        $car->setPositionOnLane($data['position_on_lane']);
+        $car->setPlannedManeuver($data['planned_maneuver']);
 
         return $car;
     }
@@ -205,27 +221,24 @@ class Car
         return $this->length;
     }
 
-    /**
-     * @return CheckInterface[]
-     */
-    protected function getStoppingChecks(): array
+    public function getColor(): string
     {
-        return [
-            TrafficLight::class,
-            CarInFrontStopped::class,
-            // PriorityRoad TODO нужно сделать возможность проезда без светофора
-        ];
+        return $this->color;
     }
 
-    protected function getChangeSpeedChecks(): array
+    public function setColor(string $color): void
     {
-        return [
-            ChangeSpeed::class
-        ];
+        $this->color = $color;
     }
 
-    public function setFigure(Figure $figure): void
+    public function getPlannedManeuver(): string
     {
-        $this->figure = $figure;
+        return $this->plannedManeuver;
     }
+
+    public function setPlannedManeuver(string $plannedManeuver): void
+    {
+        $this->plannedManeuver = $plannedManeuver;
+    }
+
 }
