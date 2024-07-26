@@ -79,11 +79,6 @@ class Road implements ArrayableInterface
         return $this->length;
     }
 
-    public function getTrafficIntensity(): int
-    {
-        return $this->trafficIntensity;
-    }
-
     public function toArray(): array
     {
         return [
