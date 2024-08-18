@@ -12,6 +12,7 @@ use App\Foundation\ArrayableInterface;
 use App\Foundation\Container;
 use App\Foundation\Logger\FileLogger;
 use App\Foundation\Logger\LoggerInterface;
+use App\Foundation\Storage\CouchbaseStorage;
 use App\Foundation\Storage\FileStorage;
 use App\Foundation\Storage\StorageInterface;
 use App\Service\Orientator;
@@ -29,7 +30,7 @@ class App implements ArrayableInterface
 
     public function __construct()
     {
-        $this->storage = new FileStorage();
+        $this->storage = new CouchbaseStorage();
         $this->storage->configure();
         Container::set(LoggerInterface::class, FileLogger::class, []);
 

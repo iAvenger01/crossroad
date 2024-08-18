@@ -1,4 +1,4 @@
-FROM php:8.3-fpm-alpine3.17 as runtime
+FROM php:8.3-fpm-alpine as runtime
 LABEL maintainer="Alexey Perevoshchikov <netgear155@gmail.com>"
 
 ENV \
@@ -9,8 +9,6 @@ ENV \
 
 ENV PHP_EXTENSIONS \
     mbstring \
-    pdo \
-    pdo_pgsql \
     json
 
 COPY --from=composer:2.7.2 /usr/bin/composer /usr/bin/composer
@@ -18,10 +16,16 @@ COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr
 
 RUN install-php-extensions ${PHP_EXTENSIONS}
 
+RUN apk add --no-cache php83-pecl-couchbase
+
 WORKDIR /var/www/app
+
+COPY ./docker/php/conf.d/couchbase.ini /usr/local/etc/php/conf.d/
+
 USER www-data
 
 RUN docker-php-source delete
+
 
 CMD ["php-fpm"]
 

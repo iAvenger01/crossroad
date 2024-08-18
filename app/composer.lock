@@ -4,8 +4,61 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d4835c245618dc2e85a01c5eec763c66",
-    "packages": [],
+    "content-hash": "1905405a4b03f6d25a32fd1e0d86797c",
+    "packages": [
+        {
+            "name": "couchbase/couchbase",
+            "version": "4.2.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/couchbase/couchbase-php-client.git",
+                "reference": "0559852c5a7ee8c1da15f28c6ddb25485e9a00af"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/couchbase/couchbase-php-client/zipball/0559852c5a7ee8c1da15f28c6ddb25485e9a00af",
+                "reference": "0559852c5a7ee8c1da15f28c6ddb25485e9a00af",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*"
+            },
+            "require-dev": {
+                "ext-sockets": "*",
+                "phpunit/phpunit": "^9"
+            },
+            "suggest": {
+                "ext-grpc": "^1.15",
+                "ext-protobuf": "^3.21",
+                "google/common-protos": "^3.1",
+                "google/protobuf": "^3.21",
+                "grpc/grpc": "^1.42"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Couchbase\\": "Couchbase/",
+                    "GPBMetadata\\Couchbase\\": "GPBMetadata/Couchbase",
+                    "Couchbase\\Protostellar\\": "Couchbase/Protostellar"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Sergey Avseyev",
+                    "email": "sergey.avseyev@gmail.com"
+                }
+            ],
+            "description": "The PHP client library provides fast access to documents stored in a Couchbase Server.",
+            "support": {
+                "source": "https://github.com/couchbase/couchbase-php-client/tree/4.2.2"
+            },
+            "time": "2024-07-24T16:40:20+00:00"
+        }
+    ],
     "packages-dev": [
         {
             "name": "filp/whoops",
@@ -300,7 +353,8 @@
     "platform": {
         "php": "^8.3",
         "ext-json": "*",
-        "ext-pdo": "*"
+        "ext-pdo": "*",
+        "ext-couchbase": "^4.2"
     },
     "platform-dev": [],
     "plugin-api-version": "2.6.0"
